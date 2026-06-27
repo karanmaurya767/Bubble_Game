@@ -6,7 +6,7 @@
 // ============================================================
 
 import { Storage } from './storage.js';
-import { Audio, vibrate, hapticPop, hapticBigPop, hapticShoot, hapticBounce, hapticAchievement } from './audio.js';
+import { Audio, Music, Voice, vibrate, hapticPop, hapticBigPop, hapticShoot, hapticBounce, hapticAchievement } from './audio.js';
 import { Particles } from './particles.js';
 import { LEVELS, getLevel, getPaletteForLevel, getStarsForScore } from './levels.js';
 import { Powerups, POWERUP_TYPES, applyPowerupEffect } from './powerups.js';
@@ -87,6 +87,11 @@ const state = {
     streak: 0, // daily streak counter
     recoilOffset: 0,
     settings: SETTINGS,
+    // v1.1 — drag-aim state
+    isAiming: false,
+    lastTouchTime: 0,
+    aimStartX: 0,
+    aimStartY: 0,
 };
 
 // ============================================================
@@ -182,6 +187,19 @@ function setShooterPos() {
     state.shooterY = state.canvas.height - 60;
 }
 
+// v1.1 — toggle full-view (minimal HUD) mode
+function setFullView(on) {
+    if (!dom.app) return;
+    dom.app.classList.toggle('in-game', !!on);
+    const fs = document.getElementById('floatSettingsBtn');
+    if (fs) fs.hidden = !on;
+    const fh = document.getElementById('floatingHud');
+    if (fh) fh.setAttribute('aria-hidden', on ? 'false' : 'true');
+    // Resize canvas after CSS settles so DPR/aspect updates correctly
+    requestAnimationFrame(() => resizeCanvas());
+    setTimeout(() => resizeCanvas(), 350);
+}
+
 // ============================================================
 // UI Update helpers
 // ============================================================
@@ -241,15 +259,23 @@ function loadLevel(id) {
     // Show game UI
     hideAllOverlays();
     dom.startScreen.classList.add('active');
+    setFullView(false); // v1.1 — full HUD + start screen
 }
 
 function startLevel() {
     Audio.init();
     Audio.resume();
+    // v1.1 — start music if enabled (safe no-op until first gesture)
+    if (Storage.getSettings().music) {
+        Music.setVolume((Storage.getSettings().volume / 100) * 0.3);
+        Music.setEnabled(Storage.getSettings().volume > 0);
+    }
     state.gameRunning = true;
     state.paused = false;
+    state.isAiming = false;
     hideAllOverlays();
     updateTopBar();
+    setFullView(true); // v1.1 — hide HUD, show floating chips
 }
 
 function hideAllOverlays() {
@@ -456,7 +482,10 @@ function drawShooter(ctx) {
 
 function drawAimLine(ctx) {
     const drawAngle = clampAimAngle(state.angle);
-    const speed = 10;
+    const aiming = state.isAiming;
+    const speed = aiming ? 14 : 10; // faster preview when actively aiming
+    const now = performance.now();
+    const pulse = aiming ? (0.85 + 0.15 * Math.sin(now * 0.012)) : 1.0;
     let vx = Math.cos(drawAngle) * speed;
     let vy = Math.sin(drawAngle) * speed;
     let x = state.shooterX;
@@ -488,10 +517,17 @@ function drawAimLine(ctx) {
     }
     if (!hitPoint) hitPoint = { x: x + vx * 10, y: y + vy * 10 };
 
-    // Primary segment (Neobrutalism style: thick dashed black with yellow shadow)
+    // v1.1 — colors & thickness shift based on aiming state
+    const baseColor   = aiming ? '#FF6BB5' : '#1A1A1A';
+    const accentColor = aiming ? '#FFFFFF' : '#FFE15D';
+    const baseWidth   = aiming ? 7 : 4;
+    const accentWidth = aiming ? 2.5 : 1.5;
+
+    // Primary segment
     ctx.save();
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = 4;
+    ctx.globalAlpha = pulse;
+    ctx.strokeStyle = baseColor;
+    ctx.lineWidth = baseWidth;
     ctx.setLineDash([10, 8]);
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -501,9 +537,9 @@ function drawAimLine(ctx) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Yellow inner highlight
-    ctx.strokeStyle = '#FFE15D';
-    ctx.lineWidth = 1.5;
+    // Inner accent (yellow when idle, white when aiming)
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = accentWidth;
     ctx.beginPath();
     ctx.moveTo(state.shooterX, state.shooterY);
     if (bouncePoint) ctx.lineTo(bouncePoint.x, bouncePoint.y);
@@ -511,28 +547,48 @@ function drawAimLine(ctx) {
     ctx.stroke();
     ctx.restore();
 
-    // Bounce point: chunky X marker
+    // Bounce point
     if (bouncePoint) {
-        ctx.save();
-        ctx.strokeStyle = '#FF5757';
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        const s = 12;
-        ctx.beginPath();
-        ctx.moveTo(bouncePoint.x - s, bouncePoint.y - s);
-        ctx.lineTo(bouncePoint.x + s, bouncePoint.y + s);
-        ctx.moveTo(bouncePoint.x + s, bouncePoint.y - s);
-        ctx.lineTo(bouncePoint.x - s, bouncePoint.y + s);
-        ctx.stroke();
-        ctx.strokeStyle = '#1A1A1A';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(bouncePoint.x, bouncePoint.y, 16, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.restore();
+        if (aiming) {
+            // v1.1 — pulsing concentric rings when actively aiming
+            const ringR = 14 + 4 * Math.sin(now * 0.008);
+            ctx.save();
+            ctx.globalAlpha = pulse;
+            ctx.strokeStyle = '#FF5757';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(bouncePoint.x, bouncePoint.y, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.strokeStyle = 'rgba(255, 87, 87, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(bouncePoint.x, bouncePoint.y, ringR + 9, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        } else {
+            // idle: chunky X marker (legacy)
+            ctx.save();
+            ctx.strokeStyle = '#FF5757';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            const s = 12;
+            ctx.beginPath();
+            ctx.moveTo(bouncePoint.x - s, bouncePoint.y - s);
+            ctx.lineTo(bouncePoint.x + s, bouncePoint.y + s);
+            ctx.moveTo(bouncePoint.x + s, bouncePoint.y - s);
+            ctx.lineTo(bouncePoint.x - s, bouncePoint.y + s);
+            ctx.stroke();
+            ctx.strokeStyle = '#1A1A1A';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(bouncePoint.x, bouncePoint.y, 16, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
 
         // Reflected segment
         ctx.save();
+        ctx.globalAlpha = pulse;
         ctx.strokeStyle = '#FF5757';
         ctx.lineWidth = 3;
         ctx.setLineDash([10, 6]);
@@ -544,29 +600,57 @@ function drawAimLine(ctx) {
         ctx.setLineDash([]);
         ctx.restore();
 
-        // Arrowhead
+        // v1.1 — breathing arrowhead at hit point
         const dirAngle = Math.atan2(hitPoint.y - bouncePoint.y, hitPoint.x - bouncePoint.x);
-        const asize = 14;
-        ctx.fillStyle = '#FF5757';
+        const arrowPulse = aiming ? (16 + 4 * Math.sin(now * 0.01)) : 14;
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.translate(hitPoint.x, hitPoint.y);
+        ctx.rotate(dirAngle);
+        ctx.fillStyle = aiming ? '#FF6BB5' : '#FF5757';
         ctx.strokeStyle = '#1A1A1A';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(hitPoint.x, hitPoint.y);
-        ctx.lineTo(hitPoint.x - asize * Math.cos(dirAngle - Math.PI / 6), hitPoint.y - asize * Math.sin(dirAngle - Math.PI / 6));
-        ctx.lineTo(hitPoint.x - asize * Math.cos(dirAngle + Math.PI / 6), hitPoint.y - asize * Math.sin(dirAngle + Math.PI / 6));
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-arrowPulse, -arrowPulse * 0.6);
+        ctx.lineTo(-arrowPulse * 0.7, 0);
+        ctx.lineTo(-arrowPulse,  arrowPulse * 0.6);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+        ctx.restore();
+    }
+
+    // v1.1 — power-meter arc near shooter when aiming
+    if (aiming) {
+        const meterR = 36;
+        const pullDist = Math.min(40, Math.hypot(state.mouseX - state.aimStartX, state.mouseY - state.aimStartY));
+        const power = pullDist / 40;
+        ctx.save();
+        ctx.globalAlpha = pulse;
+        ctx.strokeStyle = '#1A1A1A';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(state.shooterX, state.shooterY, meterR, 0, Math.PI * 2);
+        ctx.stroke();
+        // Power fill arc
+        ctx.strokeStyle = power > 0.8 ? '#FF5757' : power > 0.5 ? '#FF9F45' : '#7ED957';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(state.shooterX, state.shooterY, meterR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * power);
+        ctx.stroke();
+        ctx.restore();
     }
 
     // Target indicator on aimed bubble
     if (hitPoint && state.bubbles.some((b) => Math.abs(b.x - hitPoint.x) < 1 && Math.abs(b.y - hitPoint.y) < 1)) {
-        const pulse = 1 + 0.15 * Math.sin(Date.now() * 0.008);
+        const ringPulse = 1 + 0.15 * Math.sin(now * 0.008);
         ctx.save();
-        ctx.strokeStyle = '#FF6BB5';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = aiming ? '#FF6BB5' : '#FF6BB5';
+        ctx.lineWidth = aiming ? 4 : 3;
         ctx.beginPath();
-        ctx.arc(hitPoint.x, hitPoint.y, BUBBLE_RADIUS * pulse, 0, Math.PI * 2);
+        ctx.arc(hitPoint.x, hitPoint.y, BUBBLE_RADIUS * ringPulse, 0, Math.PI * 2);
         ctx.stroke();
         ctx.restore();
     }
@@ -645,6 +729,7 @@ function shootBubble() {
         Powerups.activeType = null;
         updatePowerupDock();
         Audio.powerup();
+        Voice.powerup(activePower); // v1.1
     } else {
         Audio.shoot();
         hapticShoot();
@@ -752,6 +837,15 @@ function attachBubble() {
         state.matchesThisShot = matches.length;
         state.comboCount++;
         updateLevelBar();
+
+        // v1.1 — Combo audio + voice callouts
+        if (matches.length >= 5) {
+            Audio.combo(2);
+            Voice.combo(matches.length);
+        } else if (matches.length >= 3) {
+            Audio.combo(1);
+            Voice.combo(matches.length);
+        }
 
         // Combo bonus + power-up reward
         if (matches.length >= 4) {
@@ -909,7 +1003,10 @@ function checkAchievements() {
 // ============================================================
 function levelComplete() {
     state.gameRunning = false;
+    setFullView(false); // v1.1 — restore HUD for win screen
     Audio.win();
+    Audio.levelUp();
+    Voice.win();
     vibrate([100, 50, 100, 50, 200]);
 
     const stars = getStarsForScore(state.level, state.score);
@@ -966,7 +1063,9 @@ function renderStars(n) {
 
 function gameOver() {
     state.gameRunning = false;
+    setFullView(false); // v1.1 — restore HUD for game-over screen
     Audio.lose();
+    Voice.lose();
     vibrate(200);
 
     if (state.score > 0) {
@@ -1059,8 +1158,10 @@ function bindEventHandlers() {
         }
     });
 
-    // Click
+    // Click — desktop aim+fire. On mobile this is skipped via lastTouchTime guard
     state.canvas.addEventListener('click', (e) => {
+        // Suppress synthetic click that fires after touchend on mobile browsers
+        if (Date.now() - state.lastTouchTime < 600) return;
         if (!state.gameRunning || state.paused || state.shootingBubble) return;
         const rect = state.canvas.getBoundingClientRect();
         state.mouseX = e.clientX - rect.left;
@@ -1071,23 +1172,42 @@ function bindEventHandlers() {
         shootBubble();
     });
 
-    // Touch
+    // v1.1 — Touch: drag-to-aim, release-to-fire (slingshot feel)
+    const dragAim = () => Storage.getSettings().dragAim !== false;
+    const tapShoot = () => Storage.getSettings().dragAim === false;
+
     state.canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
+        state.lastTouchTime = Date.now();
+        if (e.touches.length > 1) { state.isAiming = false; return; } // multi-touch cancel
         if (!state.gameRunning || state.paused || state.shootingBubble) return;
+
         const rect = state.canvas.getBoundingClientRect();
         const t = e.touches[0];
         state.mouseX = t.clientX - rect.left;
         state.mouseY = t.clientY - rect.top;
+        state.aimStartX = state.mouseX;
+        state.aimStartY = state.mouseY;
+
+        // Compute initial aim (only if dragAim mode)
         const dx = state.mouseX - state.shooterX;
         const dy = state.mouseY - state.shooterY;
-        state.angle = clampAimAngle(Math.atan2(dy, dx));
-        shootBubble();
+        if (dragAim()) {
+            state.isAiming = true;
+            if (Math.hypot(dx, dy) > BUBBLE_RADIUS * 0.5) {
+                state.angle = clampAimAngle(Math.atan2(dy, dx));
+            }
+        } else {
+            // Legacy tap-to-shoot mode
+            state.angle = clampAimAngle(Math.atan2(dy, dx));
+            shootBubble();
+        }
     }, { passive: false });
 
     state.canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
-        if (!state.gameRunning || state.paused || !state.currentBubble || state.shootingBubble) return;
+        if (e.touches.length > 1) { state.isAiming = false; return; }
+        if (!dragAim() || !state.isAiming || !state.currentBubble || state.shootingBubble) return;
         const rect = state.canvas.getBoundingClientRect();
         const t = e.touches[0];
         state.mouseX = t.clientX - rect.left;
@@ -1096,6 +1216,19 @@ function bindEventHandlers() {
         const dy = state.mouseY - state.shooterY;
         state.angle = clampAimAngle(Math.atan2(dy, dx));
     }, { passive: false });
+
+    const releaseShot = (e) => {
+        if (e.cancelable) e.preventDefault();
+        const wasAiming = state.isAiming;
+        state.isAiming = false;
+        if (!dragAim()) return; // tap mode already fired on touchstart
+        if (!wasAiming) return;
+        if (!state.gameRunning || state.paused || state.shootingBubble) return;
+        if (state.bubblesLeft <= 0 || !state.currentBubble) return;
+        shootBubble();
+    };
+    state.canvas.addEventListener('touchend', releaseShot, { passive: false });
+    state.canvas.addEventListener('touchcancel', releaseShot, { passive: false });
 
     // Keyboard
     document.addEventListener('keydown', (e) => {
@@ -1174,10 +1307,19 @@ function bindUIButtons() {
     Achievements.on((evt) => {
         if (evt.type === 'unlock') {
             hapticAchievement();
+            Audio.achievement2();
+            Voice.achievement(evt.badge.name); // v1.1
             toaster.success(`🏆 ${evt.badge.name} unlocked!`, 3500, evt.badge.icon);
         } else if (evt.type === 'levelup') {
+            Audio.levelUp();
+            Voice.levelUp(); // v1.1
             toaster.success(`LEVEL UP! LVL ${evt.level}`, 3000, '🆙');
         }
+    });
+
+    // v1.1 — Floating settings button (visible during play in full-view mode)
+    document.getElementById('floatSettingsBtn')?.addEventListener('click', () => {
+        modals.open('modalSettings');
     });
 }
 

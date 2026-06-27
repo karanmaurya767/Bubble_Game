@@ -5,7 +5,7 @@
 // ============================================================
 
 import { Storage } from './storage.js';
-import { Audio, setHapticsEnabled, vibrate } from './audio.js';
+import { Audio, Music, Voice, setHapticsEnabled, vibrate } from './audio.js';
 import { Achievements } from './achievements.js';
 import { LEVELS, getLevelsByTier, getStarsForScore } from './levels.js';
 import { Leaderboard } from './leaderboard.js';
@@ -285,6 +285,9 @@ export class SettingsManager {
         this.hapticsInput = document.getElementById('setHaptics');
         this.particlesInput = document.getElementById('setParticles');
         this.reducedMotionInput = document.getElementById('setReducedMotion');
+        this.musicInput = document.getElementById('setMusic');
+        this.voiceInput = document.getElementById('setVoice');
+        this.dragAimInput = document.getElementById('setDragAim');
         this.resetBtn = document.getElementById('setReset');
         this.volumeLabel = document.getElementById('setVolumeValue');
         this.bind();
@@ -296,9 +299,14 @@ export class SettingsManager {
             const v = parseInt(this.volumeInput.value);
             if (this.volumeLabel) this.volumeLabel.textContent = `${v}%`;
             Audio.setVolume(v / 100);
+            // Music is quieter than SFX
+            Music.setVolume((v / 100) * 0.3);
             const s = Storage.getSettings();
             s.volume = v;
             Storage.saveSettings(s);
+            // If user mutes, stop music; if they unmute and music was on, restart
+            if (v === 0 && Music.timer) Music.stop();
+            else if (v > 0 && Storage.getSettings().music && !Music.timer) Music.setEnabled(true);
             this.onChange?.(s);
         });
 
@@ -326,11 +334,57 @@ export class SettingsManager {
             this.onChange?.(s);
         });
 
+        // v1.1 — Music toggle
+        this.musicInput?.addEventListener('change', () => {
+            const s = Storage.getSettings();
+            s.music = this.musicInput.checked;
+            Storage.saveSettings(s);
+            // Music requires audio context (user gesture)
+            Audio.init();
+            Audio.resume();
+            if (s.music) {
+                Music.setVolume((s.volume / 100) * 0.3);
+                Music.setEnabled(s.volume > 0);
+                this.toaster?.success('🎵 Music ON');
+            } else {
+                Music.setEnabled(false);
+                this.toaster?.success('Music OFF');
+            }
+            this.onChange?.(s);
+        });
+
+        // v1.1 — Voice toggle
+        this.voiceInput?.addEventListener('change', () => {
+            const s = Storage.getSettings();
+            s.voice = this.voiceInput.checked;
+            Storage.saveSettings(s);
+            Voice.unlock();
+            Voice.setEnabled(s.voice);
+            if (s.voice) {
+                setTimeout(() => Voice.say('Voice enabled'), 200);
+                this.toaster?.success('🗣️ Voice ON');
+            } else {
+                this.toaster?.success('Voice OFF');
+            }
+            this.onChange?.(s);
+        });
+
+        // v1.1 — Drag-to-aim toggle (mobile)
+        this.dragAimInput?.addEventListener('change', () => {
+            const s = Storage.getSettings();
+            s.dragAim = this.dragAimInput.checked;
+            Storage.saveSettings(s);
+            this.toaster?.success(s.dragAim ? 'Drag-to-aim ON' : 'Tap-to-shoot ON');
+            this.onChange?.(s);
+        });
+
         this.resetBtn?.addEventListener('click', () => {
             if (confirm('This will erase ALL progress, badges, and scores. Continue?')) {
                 Storage.wipeAll();
                 Achievements.reset();
                 Leaderboard.reset();
+                Music.setEnabled(false);
+                Voice.setEnabled(false);
                 this.toaster?.success('Progress reset. Reloading…');
                 setTimeout(() => location.reload(), 800);
             }
@@ -344,8 +398,14 @@ export class SettingsManager {
         if (this.hapticsInput) this.hapticsInput.checked = s.haptics;
         if (this.particlesInput) this.particlesInput.value = s.particles;
         if (this.reducedMotionInput) this.reducedMotionInput.checked = !!s.reducedMotion;
+        if (this.musicInput) this.musicInput.checked = !!s.music;
+        if (this.voiceInput) this.voiceInput.checked = !!s.voice;
+        if (this.dragAimInput) this.dragAimInput.checked = s.dragAim !== false;
         Audio.setVolume(s.volume / 100);
+        Music.setVolume((s.volume / 100) * 0.3);
         setHapticsEnabled(s.haptics);
+        Voice.setEnabled(!!s.voice);
+        // Music starts only on first user gesture — defer to Audio.init()
         if (s.reducedMotion) document.documentElement.classList.add('reduced-motion');
     }
 }
@@ -380,6 +440,10 @@ export class StatsBar {
         this.highEl = document.getElementById('highScore');
         this.shotsEl = document.getElementById('bubblesLeft');
         this.streakEl = document.getElementById('streakValue');
+        // v1.1 — Floating HUD mirrors (only visible during play)
+        this.floatScoreEl = document.getElementById('floatScore');
+        this.floatShotsEl = document.getElementById('floatShots');
+        this.floatStreakEl = document.getElementById('floatStreak');
     }
 
     update({ score, highScore, shotsLeft, streak }) {
@@ -387,6 +451,11 @@ export class StatsBar {
         if (this.highEl) this.highEl.textContent = highScore;
         if (this.shotsEl) this.shotsEl.textContent = shotsLeft;
         if (this.streakEl) this.streakEl.textContent = streak;
+
+        // v1.1 — Mirror into floating HUD with bump animation
+        this.setBump(this.floatScoreEl, score);
+        this.setBump(this.floatShotsEl, shotsLeft);
+        if (this.floatStreakEl) this.floatStreakEl.textContent = streak;
     }
 
     setBump(el, value) {

@@ -148,6 +148,15 @@
             <div class="game-stage__frame" id="gameFrame">
                 <canvas id="gameCanvas" width="600" height="700" aria-label="Bubble shooter game board"></canvas>
 
+                <!-- Floating HUD overlay (only visible during play / full-view) -->
+                <div class="floating-hud" id="floatingHud" aria-hidden="true">
+                    <div class="floating-hud__score" id="floatScore">0</div>
+                    <div class="floating-hud__shots" id="floatShots">∞</div>
+                    <div class="floating-hud__streak" id="floatStreak">🔥 0</div>
+                </div>
+                <!-- Floating settings button — sits left of pause, visible during play -->
+                <button class="float-settings" id="floatSettingsBtn" aria-label="Settings" hidden>⚙</button>
+
                 <!-- Pause button (over canvas) -->
                 <button class="pause-btn" id="pauseBtn" aria-label="Pause game">⏸</button>
 
@@ -332,10 +341,31 @@
             </div>
 
             <hr class="setting-sep">
+            <p class="setting-section-label">Audio (v1.1)</p>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setMusic">Background Music</label>
+                <input type="checkbox" id="setMusic" class="toggle">
+            </div>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setVoice">Voice Callouts</label>
+                <input type="checkbox" id="setVoice" class="toggle">
+            </div>
+
+            <hr class="setting-sep">
+            <p class="setting-section-label">Controls (v1.1)</p>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setDragAim">Drag-to-Aim (mobile)</label>
+                <input type="checkbox" id="setDragAim" class="toggle" checked>
+            </div>
+
+            <hr class="setting-sep">
 
             <button class="nb-btn nb-btn--danger nb-btn--full" id="setReset">RESET ALL PROGRESS</button>
 
-            <p class="setting-footer">BUBBLE POP! v1.0 · Built with ❤️</p>
+            <p class="setting-footer">BUBBLE POP! v1.1 · Built with ❤️</p>
         </div>
     </div>
 

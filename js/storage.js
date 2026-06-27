@@ -104,6 +104,9 @@ export const Storage = {
             haptics: true,
             particles: 'med', // low | med | high
             reducedMotion: false,
+            music: false,    // background music (opt-in)
+            voice: false,    // voice callouts via Web Speech (opt-in)
+            dragAim: true,   // mobile drag-to-aim (on by default)
         });
     },
 
