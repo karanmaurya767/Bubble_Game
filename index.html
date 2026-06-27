@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#FFE15D">
+    <meta name="description" content="A bold, playful bubble shooter game with levels, power-ups, and achievements.">
+    <title>BUBBLE POP! — A Neobrutalism Arcade</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+    <!-- Fonts: Press Start 2P for arcade, Bungee for headers, Inter for body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Press+Start+2P&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <!-- ===== Background decorative bubbles (parallax) ===== -->
+    <div class="bg-bubbles" aria-hidden="true">
+        <span class="bg-bubble bg-bubble--1"></span>
+        <span class="bg-bubble bg-bubble--2"></span>
+        <span class="bg-bubble bg-bubble--3"></span>
+        <span class="bg-bubble bg-bubble--4"></span>
+        <span class="bg-bubble bg-bubble--5"></span>
+        <span class="bg-bubble bg-bubble--6"></span>
+    </div>
+
+    <!-- ===== Loading Screen ===== -->
+    <div id="loadingScreen" class="loading-screen" aria-live="polite">
+        <div class="loading-card">
+            <h1 class="loading-logo">BUBBLE POP!</h1>
+            <p class="loading-tagline">GET READY TO BLOW…</p>
+            <div class="loading-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+                <div class="loading-bar__fill" id="loadingBarFill"></div>
+            </div>
+            <p class="loading-percent" id="loadingPercent">0%</p>
+        </div>
+    </div>
+
+    <!-- ===== Onboarding Overlay ===== -->
+    <div id="onboardingOverlay" class="onboarding-overlay" aria-modal="true" role="dialog" hidden>
+        <div class="onboarding-card">
+            <div class="onboarding-slides" id="onboardingSlides">
+                <div class="onboarding-slide" data-slide="1">
+                    <div class="onboarding-emoji" aria-hidden="true">🎯</div>
+                    <h2 class="onboarding-title">AIM &amp; SHOOT</h2>
+                    <p class="onboarding-text">Move your finger or mouse to aim. Tap or click to launch a bubble.</p>
+                </div>
+                <div class="onboarding-slide" data-slide="2" hidden>
+                    <div class="onboarding-emoji" aria-hidden="true">🫧</div>
+                    <h2 class="onboarding-title">MATCH 3+</h2>
+                    <p class="onboarding-text">Pop 3 or more bubbles of the same color. Match 4+ and earn a power-up!</p>
+                </div>
+                <div class="onboarding-slide" data-slide="3" hidden>
+                    <div class="onboarding-emoji" aria-hidden="true">🏆</div>
+                    <h2 class="onboarding-title">CLEAR THE BOARD</h2>
+                    <p class="onboarding-text">Pop every bubble to win the level. Earn stars and unlock achievements.</p>
+                </div>
+            </div>
+            <div class="onboarding-dots" id="onboardingDots" aria-hidden="true">
+                <span class="dot dot--active"></span>
+                <span class="dot"></span>
+                <span class="dot"></span>
+            </div>
+            <div class="onboarding-actions">
+                <button class="nb-btn nb-btn--ghost" id="onboardingSkip">SKIP</button>
+                <button class="nb-btn nb-btn--primary" id="onboardingNext">NEXT →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Main App ===== -->
+    <main class="app" id="app" hidden>
+
+        <!-- ===== Header / Top Bar ===== -->
+        <header class="topbar">
+            <div class="topbar__logo">
+                <span class="topbar__logo-emoji" aria-hidden="true">🫧</span>
+                <h1 class="topbar__title">BUBBLE POP!</h1>
+            </div>
+            <div class="topbar__player">
+                <div class="player-level" title="Player Level">
+                    <span class="player-level__label">LVL</span>
+                    <span class="player-level__value" id="playerLevel">1</span>
+                </div>
+                <div class="player-xp" title="Experience">
+                    <div class="player-xp__bar">
+                        <div class="player-xp__fill" id="playerXpFill" style="width:0%"></div>
+                    </div>
+                    <span class="player-xp__text" id="playerXpText">0 / 100 XP</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ===== Stats Bar ===== -->
+        <section class="stats-bar" aria-label="Game statistics">
+            <div class="stat-card stat-card--yellow">
+                <div class="stat-card__icon" aria-hidden="true">⭐</div>
+                <div class="stat-card__info">
+                    <div class="stat-card__label">SCORE</div>
+                    <div class="stat-card__value" id="score">0</div>
+                </div>
+            </div>
+            <div class="stat-card stat-card--pink">
+                <div class="stat-card__icon" aria-hidden="true">🏆</div>
+                <div class="stat-card__info">
+                    <div class="stat-card__label">BEST</div>
+                    <div class="stat-card__value" id="highScore">0</div>
+                </div>
+            </div>
+            <div class="stat-card stat-card--blue">
+                <div class="stat-card__icon" aria-hidden="true">🎯</div>
+                <div class="stat-card__info">
+                    <div class="stat-card__label">SHOTS</div>
+                    <div class="stat-card__value" id="bubblesLeft">50</div>
+                </div>
+            </div>
+            <div class="stat-card stat-card--green">
+                <div class="stat-card__icon" aria-hidden="true">🔥</div>
+                <div class="stat-card__info">
+                    <div class="stat-card__label">STREAK</div>
+                    <div class="stat-card__value" id="streakValue">0</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== Level Progress ===== -->
+        <section class="level-bar" aria-label="Level progress">
+            <div class="level-bar__info">
+                <span class="level-bar__name" id="levelName">LEVEL 1 · SUNNY START</span>
+                <span class="level-bar__progress" id="levelProgress">0 / 30</span>
+            </div>
+            <div class="level-bar__track">
+                <div class="level-bar__fill" id="levelFill" style="width:0%"></div>
+            </div>
+        </section>
+
+        <!-- ===== Game Canvas ===== -->
+        <section class="game-stage" aria-label="Game board">
+            <div class="game-stage__frame" id="gameFrame">
+                <canvas id="gameCanvas" width="600" height="700" aria-label="Bubble shooter game board"></canvas>
+
+                <!-- Pause button (over canvas) -->
+                <button class="pause-btn" id="pauseBtn" aria-label="Pause game">⏸</button>
+
+                <!-- Start Screen -->
+                <div id="startScreen" class="screen-overlay screen-overlay--start active" role="dialog" aria-modal="true">
+                    <div class="screen-overlay__card">
+                        <div class="screen-overlay__emoji" aria-hidden="true">🎮</div>
+                        <h2 class="screen-overlay__title">READY?</h2>
+                        <p class="screen-overlay__text">Aim, shoot &amp; pop those bubbles!</p>
+                        <button class="nb-btn nb-btn--primary nb-btn--xl" id="startBtn">
+                            <span>START GAME</span>
+                            <span aria-hidden="true">▶</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pause Screen -->
+                <div id="pauseScreen" class="screen-overlay" role="dialog" aria-modal="true">
+                    <div class="screen-overlay__card">
+                        <div class="screen-overlay__emoji" aria-hidden="true">⏸</div>
+                        <h2 class="screen-overlay__title">PAUSED</h2>
+                        <p class="screen-overlay__text">Take a breather.</p>
+                        <button class="nb-btn nb-btn--primary nb-btn--xl" id="resumeBtn">
+                            <span>RESUME</span>
+                            <span aria-hidden="true">▶</span>
+                        </button>
+                        <button class="nb-btn nb-btn--ghost nb-btn--xl" id="quitBtn">QUIT</button>
+                    </div>
+                </div>
+
+                <!-- Win Screen -->
+                <div id="winScreen" class="screen-overlay" role="dialog" aria-modal="true">
+                    <div class="screen-overlay__card screen-overlay__card--win">
+                        <div class="screen-overlay__emoji" aria-hidden="true">🎉</div>
+                        <h2 class="screen-overlay__title">YOU WIN!</h2>
+                        <div class="stars-row" id="starsRow" aria-label="Stars earned">
+                            <span class="star-icon" data-star="1">★</span>
+                            <span class="star-icon" data-star="2">★</span>
+                            <span class="star-icon" data-star="3">★</span>
+                        </div>
+                        <p class="screen-overlay__text">Final Score: <strong id="winScore">0</strong></p>
+                        <div class="screen-overlay__actions">
+                            <button class="nb-btn nb-btn--secondary" id="winReplayBtn">↻ REPLAY</button>
+                            <button class="nb-btn nb-btn--primary" id="winNextBtn">NEXT LEVEL →</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Over Screen -->
+                <div id="gameOver" class="screen-overlay" role="dialog" aria-modal="true">
+                    <div class="screen-overlay__card screen-overlay__card--lose">
+                        <div class="screen-overlay__emoji" aria-hidden="true">💥</div>
+                        <h2 class="screen-overlay__title">GAME OVER</h2>
+                        <p class="screen-overlay__text">Your Score: <strong id="finalScore">0</strong></p>
+                        <div class="screen-overlay__actions">
+                            <button class="nb-btn nb-btn--secondary" id="gameOverHomeBtn">🏠 MENU</button>
+                            <button class="nb-btn nb-btn--primary" id="gameOverRetryBtn">↻ RETRY</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== Power-up Dock ===== -->
+        <section class="powerup-dock" aria-label="Power-ups">
+            <button class="powerup powerup--bomb" id="powerupBomb" data-type="bomb" disabled aria-label="Bomb power-up">
+                <span class="powerup__emoji" aria-hidden="true">💣</span>
+                <span class="powerup__count" id="powerupBombCount">0</span>
+            </button>
+            <button class="powerup powerup--rainbow" id="powerupRainbow" data-type="rainbow" disabled aria-label="Rainbow power-up">
+                <span class="powerup__emoji" aria-hidden="true">🌈</span>
+                <span class="powerup__count" id="powerupRainbowCount">0</span>
+            </button>
+            <button class="powerup powerup--lightning" id="powerupLightning" data-type="lightning" disabled aria-label="Lightning power-up">
+                <span class="powerup__emoji" aria-hidden="true">⚡</span>
+                <span class="powerup__count" id="powerupLightningCount">0</span>
+            </button>
+        </section>
+
+        <!-- ===== Bottom Action Dock ===== -->
+        <nav class="action-dock" aria-label="Game menu">
+            <button class="dock-btn" id="dockLevels" aria-label="Level select">
+                <span class="dock-btn__icon" aria-hidden="true">🗺</span>
+                <span class="dock-btn__label">LEVELS</span>
+            </button>
+            <button class="dock-btn" id="dockAchievements" aria-label="Achievements">
+                <span class="dock-btn__icon" aria-hidden="true">🏅</span>
+                <span class="dock-btn__label">BADGES</span>
+            </button>
+            <button class="dock-btn" id="dockLeaderboard" aria-label="Leaderboard">
+                <span class="dock-btn__icon" aria-hidden="true">📊</span>
+                <span class="dock-btn__label">SCORES</span>
+            </button>
+            <button class="dock-btn" id="dockSettings" aria-label="Settings">
+                <span class="dock-btn__icon" aria-hidden="true">⚙</span>
+                <span class="dock-btn__label">SETTINGS</span>
+            </button>
+        </nav>
+    </main>
+
+    <!-- ===== Modal: Levels ===== -->
+    <div class="modal" id="modalLevels" role="dialog" aria-modal="true" aria-labelledby="modalLevelsTitle" hidden>
+        <div class="modal__backdrop" data-close></div>
+        <div class="modal__panel modal__panel--lg">
+            <button class="modal__close" data-close aria-label="Close">✕</button>
+            <h2 class="modal__title" id="modalLevelsTitle">SELECT LEVEL</h2>
+            <div class="level-filters">
+                <button class="chip chip--active" data-filter="all">ALL</button>
+                <button class="chip" data-filter="easy">EASY</button>
+                <button class="chip" data-filter="medium">MEDIUM</button>
+                <button class="chip" data-filter="hard">HARD</button>
+            </div>
+            <div class="level-grid" id="levelGrid"></div>
+        </div>
+    </div>
+
+    <!-- ===== Modal: Achievements ===== -->
+    <div class="modal" id="modalAchievements" role="dialog" aria-modal="true" aria-labelledby="modalAchTitle" hidden>
+        <div class="modal__backdrop" data-close></div>
+        <div class="modal__panel modal__panel--lg">
+            <button class="modal__close" data-close aria-label="Close">✕</button>
+            <h2 class="modal__title" id="modalAchTitle">ACHIEVEMENTS</h2>
+            <div class="xp-summary">
+                <span>Player Level: <strong id="achPlayerLevel">1</strong></span>
+                <span>XP: <strong id="achPlayerXp">0</strong></span>
+                <span>Unlocked: <strong id="achUnlocked">0 / 0</strong></span>
+            </div>
+            <div class="badge-grid" id="badgeGrid"></div>
+        </div>
+    </div>
+
+    <!-- ===== Modal: Leaderboard ===== -->
+    <div class="modal" id="modalLeaderboard" role="dialog" aria-modal="true" aria-labelledby="modalLbTitle" hidden>
+        <div class="modal__backdrop" data-close></div>
+        <div class="modal__panel">
+            <button class="modal__close" data-close aria-label="Close">✕</button>
+            <h2 class="modal__title" id="modalLbTitle">LEADERBOARD</h2>
+            <div class="lb-filters">
+                <button class="chip chip--active" data-lb="all">ALL TIME</button>
+                <button class="chip" data-lb="week">THIS WEEK</button>
+                <button class="chip" data-lb="today">TODAY</button>
+            </div>
+            <div class="lb-table" id="lbTable">
+                <div class="lb-empty">
+                    <div class="lb-empty__emoji" aria-hidden="true">🎯</div>
+                    <p>No scores yet. Play your first game!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== Modal: Settings ===== -->
+    <div class="modal" id="modalSettings" role="dialog" aria-modal="true" aria-labelledby="modalSetTitle" hidden>
+        <div class="modal__backdrop" data-close></div>
+        <div class="modal__panel">
+            <button class="modal__close" data-close aria-label="Close">✕</button>
+            <h2 class="modal__title" id="modalSetTitle">SETTINGS</h2>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setVolume">Sound Volume</label>
+                <input type="range" id="setVolume" class="slider" min="0" max="100" value="80">
+                <span class="setting-row__value" id="setVolumeValue">80%</span>
+            </div>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setHaptics">Haptics</label>
+                <input type="checkbox" id="setHaptics" class="toggle" checked>
+            </div>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setParticles">Particle Quality</label>
+                <select id="setParticles" class="select">
+                    <option value="low">LOW</option>
+                    <option value="med" selected>MEDIUM</option>
+                    <option value="high">HIGH</option>
+                </select>
+            </div>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setReducedMotion">Reduced Motion</label>
+                <input type="checkbox" id="setReducedMotion" class="toggle">
+            </div>
+
+            <hr class="setting-sep">
+
+            <button class="nb-btn nb-btn--danger nb-btn--full" id="setReset">RESET ALL PROGRESS</button>
+
+            <p class="setting-footer">BUBBLE POP! v1.0 · Built with ❤️</p>
+        </div>
+    </div>
+
+    <!-- ===== Toast container ===== -->
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ===== PWA install banner ===== -->
+    <div class="install-banner" id="installBanner" hidden>
+        <span>📱 Install BUBBLE POP! for offline play</span>
+        <div>
+            <button class="nb-btn nb-btn--primary nb-btn--sm" id="installBtn">INSTALL</button>
+            <button class="nb-btn nb-btn--ghost nb-btn--sm" id="installDismiss">LATER</button>
+        </div>
+    </div>
+
+    <!-- ===== Scripts ===== -->
+    <script type="module" src="js/storage.js"></script>
+    <script type="module" src="js/audio.js"></script>
+    <script type="module" src="js/particles.js"></script>
+    <script type="module" src="js/levels.js"></script>
+    <script type="module" src="js/powerups.js"></script>
+    <script type="module" src="js/achievements.js"></script>
+    <script type="module" src="js/leaderboard.js"></script>
+    <script type="module" src="js/ui.js"></script>
+    <script type="module" src="js/game.js"></script>
+
+    <!-- Service worker registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {});
+            });
+        }
+    </script>
+</body>
+</html>

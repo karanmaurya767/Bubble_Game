@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%">
+      <stop offset="0%" stop-color="#FFE15D"/>
+      <stop offset="100%" stop-color="#FF9F45"/>
+    </radialGradient>
+    <radialGradient id="bubble1" cx="35%" cy="35%">
+      <stop offset="0%" stop-color="#FF6BB5"/>
+      <stop offset="100%" stop-color="#B983FF"/>
+    </radialGradient>
+    <radialGradient id="bubble2" cx="35%" cy="35%">
+      <stop offset="0%" stop-color="#4DA8FF"/>
+      <stop offset="100%" stop-color="#7ED957"/>
+    </radialGradient>
+  </defs>
+  <!-- Rounded square bg with thick border -->
+  <rect x="16" y="16" width="480" height="480" rx="80" fill="url(#bg)" stroke="#1A1A1A" stroke-width="20"/>
+  <!-- Bubble 1 -->
+  <circle cx="170" cy="190" r="80" fill="url(#bubble1)" stroke="#1A1A1A" stroke-width="10"/>
+  <ellipse cx="150" cy="170" rx="22" ry="14" fill="rgba(255,255,255,0.7)"/>
+  <!-- Bubble 2 -->
+  <circle cx="340" cy="230" r="70" fill="url(#bubble2)" stroke="#1A1A1A" stroke-width="10"/>
+  <ellipse cx="322" cy="212" rx="18" ry="12" fill="rgba(255,255,255,0.7)"/>
+  <!-- Bubble 3 small -->
+  <circle cx="256" cy="360" r="55" fill="#FF6B6B" stroke="#1A1A1A" stroke-width="10"/>
+  <ellipse cx="244" cy="348" rx="14" ry="9" fill="rgba(255,255,255,0.7)"/>
+  <!-- POP text -->
+  <text x="256" y="450" text-anchor="middle" font-family="Arial Black, sans-serif" font-weight="900" font-size="60" fill="#1A1A1A">POP!</text>
+</svg>

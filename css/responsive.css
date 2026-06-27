@@ -1,0 +1,75 @@
+/* ============================================================
+   BUBBLE POP! — Responsive Breakpoints
+   ============================================================
+   Mobile-first with progressive enhancements.
+   ============================================================ */
+
+/* ---------- Mobile Portrait (default already mobile-first) ---------- */
+
+/* ---------- Small phones (≤ 360px) ---------- */
+@media (max-width: 360px) {
+    body { padding: 12px 10px; }
+    .topbar__title { font-size: 1rem; }
+    .player-xp { width: 100px; }
+    .stat-card { padding: 8px 6px; gap: 6px; }
+    .stat-card__icon { font-size: 1.1rem; }
+    .stat-card__label { font-size: 0.45rem; }
+    .stat-card__value { font-size: 0.8rem; }
+    .powerup { padding: 10px; min-height: 56px; }
+    .powerup__emoji { font-size: 1.5rem; }
+    .nb-btn { font-size: 0.6rem; padding: 10px 16px; }
+    .nb-btn--xl { font-size: 0.75rem; padding: 12px 20px; }
+}
+
+/* ---------- Tablets / large phones (≥ 480px) ---------- */
+@media (min-width: 480px) {
+    .stat-card__label { font-size: 0.6rem; }
+    .powerup__emoji { font-size: 2.2rem; }
+    .badge-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+}
+
+/* ---------- Tablets (≥ 768px) ---------- */
+@media (min-width: 768px) {
+    body { padding: 24px; }
+    .app { gap: 18px; max-width: 720px; }
+    .topbar { padding: 14px 22px; }
+    .stats-bar { gap: 14px; }
+    .stat-card { padding: 14px 14px; }
+    .action-dock { gap: 14px; }
+    .powerup-dock { gap: 14px; }
+    .dock-btn { min-height: 84px; }
+    .dock-btn__icon { font-size: 1.8rem; }
+    .dock-btn__label { font-size: 0.65rem; }
+    .game-stage__frame { max-width: 600px; }
+}
+
+/* ---------- Desktop (≥ 1024px) ---------- */
+@media (min-width: 1024px) {
+    .app { max-width: 720px; }
+    .topbar__title { font-size: 1.6rem; }
+    .stat-card__value { font-size: 1.4rem; }
+}
+
+/* ---------- Landscape on mobile ---------- */
+@media (max-height: 500px) and (orientation: landscape) {
+    .app { max-width: 100%; }
+    .game-stage__frame { max-width: 360px; }
+    .stats-bar { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ---------- Print ---------- */
+@media print {
+    .topbar, .action-dock, .powerup-dock, .pause-btn, .bg-bubbles, .toast-stack, .install-banner {
+        display: none !important;
+    }
+}
+
+/* ---------- Touch device tweaks ---------- */
+@media (hover: none) and (pointer: coarse) {
+    .nb-btn, .dock-btn, .powerup, .stat-card {
+        /* Disable hover transforms on touch — they stick */
+    }
+    .nb-btn:hover, .dock-btn:hover, .powerup:hover {
+        transform: none;
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "appId": "com.bubbleshooter.app",
+    "appName": "Bubble Pop",
+    "webDir": "dist",
+    "bundledWebRuntime": false,
+    "android": {
+        "allowMixedContent": false
+    },
+    "ios": {
+        "contentInset": "always"
+    },
+    "server": {
+        "androidScheme": "https"
+    }
+}
