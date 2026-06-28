@@ -44,6 +44,16 @@ const dom = {
     dockAchievements: document.getElementById('dockAchievements'),
     dockLeaderboard: document.getElementById('dockLeaderboard'),
     dockSettings: document.getElementById('dockSettings'),
+    // v1.2 — Top strip + bottom dock
+    topStrip: document.getElementById('gameTopStrip'),
+    stripScore: document.getElementById('stripScore'),
+    stripShots: document.getElementById('stripShots'),
+    stripStreak: document.getElementById('stripStreak'),
+    stripPauseBtn: document.getElementById('stripPauseBtn'),
+    stripSettingsBtn: document.getElementById('stripSettingsBtn'),
+    bottomDock: document.getElementById('gameBottomDock'),
+    shooterPreviewCurrent: document.getElementById('shooterPreviewCurrent'),
+    shooterPreviewNext: document.getElementById('shooterPreviewNext'),
 };
 
 // ============================================================
@@ -187,17 +197,25 @@ function setShooterPos() {
     state.shooterY = state.canvas.height - 60;
 }
 
-// v1.1 — toggle full-view (minimal HUD) mode
+// v1.2 — toggle full-view (top strip + bottom dock layout)
 function setFullView(on) {
     if (!dom.app) return;
     dom.app.classList.toggle('in-game', !!on);
-    const fs = document.getElementById('floatSettingsBtn');
-    if (fs) fs.hidden = !on;
-    const fh = document.getElementById('floatingHud');
-    if (fh) fh.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (dom.topStrip) dom.topStrip.setAttribute('aria-hidden', on ? 'false' : 'true');
+    if (dom.bottomDock) dom.bottomDock.setAttribute('aria-hidden', on ? 'false' : 'true');
     // Resize canvas after CSS settles so DPR/aspect updates correctly
     requestAnimationFrame(() => resizeCanvas());
     setTimeout(() => resizeCanvas(), 350);
+}
+
+// v1.2 — mirror current+next bubble colors into bottom-dock DOM preview
+function updateShooterPreview() {
+    if (dom.shooterPreviewCurrent && state.currentBubble) {
+        dom.shooterPreviewCurrent.style.background = state.currentBubble.color;
+    }
+    if (dom.shooterPreviewNext && state.nextBubble) {
+        dom.shooterPreviewNext.style.background = state.nextBubble.color;
+    }
 }
 
 // ============================================================
@@ -255,27 +273,26 @@ function loadLevel(id) {
     updateStatsBar();
     updateLevelBar();
     updatePowerupDock();
+    updateShooterPreview(); // v1.2
 
     // Show game UI
     hideAllOverlays();
     dom.startScreen.classList.add('active');
-    setFullView(false); // v1.1 — full HUD + start screen
+    setFullView(false); // v1.2 — full HUD + start screen
 }
 
 function startLevel() {
     Audio.init();
     Audio.resume();
-    // v1.1 — start music if enabled (safe no-op until first gesture)
-    if (Storage.getSettings().music) {
-        Music.setVolume((Storage.getSettings().volume / 100) * 0.3);
-        Music.setEnabled(Storage.getSettings().volume > 0);
-    }
+    // v1.2 — start music if enabled (safe no-op until first gesture)
+    Music.tryStartOnGesture();
     state.gameRunning = true;
     state.paused = false;
     state.isAiming = false;
     hideAllOverlays();
     updateTopBar();
-    setFullView(true); // v1.1 — hide HUD, show floating chips
+    updateShooterPreview();
+    setFullView(true); // v1.2 — show top strip + bottom dock
 }
 
 function hideAllOverlays() {
@@ -321,6 +338,7 @@ function generateNextBubble() {
     if (!state.nextBubble) {
         state.nextBubble = { x: state.shooterX + 50, y: state.shooterY, color: randomColor() };
     }
+    updateShooterPreview(); // v1.2
 }
 
 function randomColor() {
@@ -714,6 +732,7 @@ function shootBubble() {
     // Advance queue
     state.currentBubble = { x: state.shooterX, y: state.shooterY, color: state.nextBubble.color, vx: 0, vy: 0 };
     state.nextBubble = { x: state.shooterX + 50, y: state.shooterY, color: randomColor() };
+    updateShooterPreview(); // v1.2
 
     state.bubblesLeft--;
     state.matchesThisShot = 0;
@@ -722,6 +741,9 @@ function shootBubble() {
     // Recoil
     state.recoilOffset = -6;
     setTimeout(() => { state.recoilOffset = 0; }, 100);
+
+    // v1.2 — first user gesture: try to start background music
+    Music.tryStartOnGesture();
 
     // Consume power-up if armed
     if (activePower) {
@@ -1252,6 +1274,7 @@ function bindEventHandlers() {
 function bindUIButtons() {
     dom.startBtn?.addEventListener('click', () => {
         recordPlayToday();
+        Music.tryStartOnGesture(); // v1.2 — first gesture hook for music
         startLevel();
     });
     dom.pauseBtn?.addEventListener('click', () => togglePause());
@@ -1317,32 +1340,15 @@ function bindUIButtons() {
         }
     });
 
-    // v1.1 — Floating settings button (visible during play in full-view mode)
-    document.getElementById('floatSettingsBtn')?.addEventListener('click', () => {
+    // v1.2 — Strip buttons (visible during play in full-view mode)
+    dom.stripPauseBtn?.addEventListener('click', () => togglePause());
+    dom.stripSettingsBtn?.addEventListener('click', () => {
+        Music.tryStartOnGesture(); // opening settings is also a gesture
         modals.open('modalSettings');
     });
 }
 
-// ============================================================
-// PWA install banner
-// ============================================================
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const banner = document.getElementById('installBanner');
-    if (banner) banner.hidden = false;
-    document.getElementById('installBtn')?.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        if (outcome === 'accepted') document.getElementById('installBanner').hidden = true;
-        deferredPrompt = null;
-    });
-    document.getElementById('installDismiss')?.addEventListener('click', () => {
-        document.getElementById('installBanner').hidden = true;
-    });
-});
+// PWA install banner removed in v1.2 — install via browser's "Add to Home Screen"
 
 // ============================================================
 // Boot

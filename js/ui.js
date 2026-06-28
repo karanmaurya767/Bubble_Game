@@ -343,8 +343,8 @@ export class SettingsManager {
             Audio.init();
             Audio.resume();
             if (s.music) {
-                Music.setVolume((s.volume / 100) * 0.3);
-                Music.setEnabled(s.volume > 0);
+                Music.pendingStart = true; // v1.2 — gated start on next gesture
+                Music.tryStartOnGesture(); // also try immediately (this click IS a gesture)
                 this.toaster?.success('🎵 Music ON');
             } else {
                 Music.setEnabled(false);
@@ -440,10 +440,10 @@ export class StatsBar {
         this.highEl = document.getElementById('highScore');
         this.shotsEl = document.getElementById('bubblesLeft');
         this.streakEl = document.getElementById('streakValue');
-        // v1.1 — Floating HUD mirrors (only visible during play)
-        this.floatScoreEl = document.getElementById('floatScore');
-        this.floatShotsEl = document.getElementById('floatShots');
-        this.floatStreakEl = document.getElementById('floatStreak');
+        // v1.2 — Top strip chips (visible during play)
+        this.stripScoreEl = document.getElementById('stripScore');
+        this.stripShotsEl = document.getElementById('stripShots');
+        this.stripStreakEl = document.getElementById('stripStreak');
     }
 
     update({ score, highScore, shotsLeft, streak }) {
@@ -452,10 +452,10 @@ export class StatsBar {
         if (this.shotsEl) this.shotsEl.textContent = shotsLeft;
         if (this.streakEl) this.streakEl.textContent = streak;
 
-        // v1.1 — Mirror into floating HUD with bump animation
-        this.setBump(this.floatScoreEl, score);
-        this.setBump(this.floatShotsEl, shotsLeft);
-        if (this.floatStreakEl) this.floatStreakEl.textContent = streak;
+        // v1.2 — Mirror into top strip with bump animation
+        this.setBump(this.stripScoreEl, `⭐ ${score}`);
+        this.setBump(this.stripShotsEl, `🎯 ${shotsLeft}`);
+        this.setBump(this.stripStreakEl, `🔥 ${streak}`);
     }
 
     setBump(el, value) {
@@ -465,6 +465,7 @@ export class StatsBar {
         // Force reflow to restart animation
         void el.offsetWidth;
         el.classList.add('is-bump');
+        setTimeout(() => el.classList.remove('is-bump'), 400);
     }
 }
 
@@ -511,7 +512,7 @@ export class PowerupDock {
             if (refs.count) refs.count.textContent = count;
             if (refs.btn) {
                 refs.btn.disabled = count <= 0;
-                refs.btn.classList.toggle('is-active', activeType === type);
+                refs.btn.classList.toggle('is-armed', activeType === type);
             }
         });
     }

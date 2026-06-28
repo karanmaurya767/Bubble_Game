@@ -232,6 +232,7 @@ class MusicEngine {
         this.timer = null;
         this.stepIndex = 0;
         this.enabled = false;
+        this.pendingStart = false; // v1.2 — wait for first user gesture
         this.volume = 0.15;
         this.tempo = 124;          // BPM
         this.stepInterval = 0;     // seconds per 16th note
@@ -239,6 +240,24 @@ class MusicEngine {
         this.root = 220;           // A3
         this.leadPattern = [];
         this.barCount = 0;
+    }
+
+    /** v1.2 — called from any user gesture; starts music if user opted in */
+    tryStartOnGesture() {
+        if (this.timer) return; // already playing
+        if (!this.pendingStart) return;
+        if (!Storage.getSettings().music) {
+            this.pendingStart = false;
+            return;
+        }
+        // Audio context needs init from a gesture; Audio.init() is idempotent
+        this.audio.init();
+        this.audio.resume();
+        if (this.audio.initialized) {
+            this.pendingStart = false;
+            this.setVolume((Storage.getSettings().volume / 100) * 0.3);
+            this.start();
+        }
     }
 
     start() {
@@ -463,8 +482,12 @@ if (Voice.available) {
 // Apply stored settings on module load
 const settings = Storage.getSettings();
 Audio.setVolume(settings.volume / 100);
-if (settings.music) Music.setEnabled(false); // wait for first gesture before starting
-if (settings.voice) Voice.setEnabled(true);
+// v1.2 — mark music as pending; will start on first user gesture (tryStartOnGesture)
+if (settings.music) Music.pendingStart = true;
+if (settings.voice) {
+    Voice.unlock();
+    Voice.setEnabled(true);
+}
 
 // ============================================================
 // Haptic feedback helper

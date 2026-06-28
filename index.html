@@ -143,22 +143,26 @@
             </div>
         </section>
 
+        <!-- ===== Top Strip (visible only during play / full-view) ===== -->
+        <div class="game-top-strip" id="gameTopStrip" aria-hidden="true">
+            <div class="top-strip-stats">
+                <div class="top-strip-chip" id="stripScore">⭐ 0</div>
+                <div class="top-strip-chip" id="stripShots">🎯 0</div>
+                <div class="top-strip-chip" id="stripStreak">🔥 0</div>
+            </div>
+            <div class="top-strip-actions">
+                <button class="top-strip-btn" id="stripPauseBtn" aria-label="Pause">⏸</button>
+                <button class="top-strip-btn" id="stripSettingsBtn" aria-label="Settings">⚙</button>
+            </div>
+        </div>
+
         <!-- ===== Game Canvas ===== -->
         <section class="game-stage" aria-label="Game board">
             <div class="game-stage__frame" id="gameFrame">
                 <canvas id="gameCanvas" width="600" height="700" aria-label="Bubble shooter game board"></canvas>
 
-                <!-- Floating HUD overlay (only visible during play / full-view) -->
-                <div class="floating-hud" id="floatingHud" aria-hidden="true">
-                    <div class="floating-hud__score" id="floatScore">0</div>
-                    <div class="floating-hud__shots" id="floatShots">∞</div>
-                    <div class="floating-hud__streak" id="floatStreak">🔥 0</div>
-                </div>
-                <!-- Floating settings button — sits left of pause, visible during play -->
-                <button class="float-settings" id="floatSettingsBtn" aria-label="Settings" hidden>⚙</button>
-
-                <!-- Pause button (over canvas) -->
-                <button class="pause-btn" id="pauseBtn" aria-label="Pause game">⏸</button>
+                <!-- Pause button (over canvas - kept as legacy fallback) -->
+                <button class="pause-btn" id="pauseBtn" aria-label="Pause game" hidden>⏸</button>
 
                 <!-- Start Screen -->
                 <div id="startScreen" class="screen-overlay screen-overlay--start active" role="dialog" aria-modal="true">
@@ -220,21 +224,28 @@
             </div>
         </section>
 
-        <!-- ===== Power-up Dock ===== -->
-        <section class="powerup-dock" aria-label="Power-ups">
-            <button class="powerup powerup--bomb" id="powerupBomb" data-type="bomb" disabled aria-label="Bomb power-up">
-                <span class="powerup__emoji" aria-hidden="true">💣</span>
-                <span class="powerup__count" id="powerupBombCount">0</span>
-            </button>
-            <button class="powerup powerup--rainbow" id="powerupRainbow" data-type="rainbow" disabled aria-label="Rainbow power-up">
-                <span class="powerup__emoji" aria-hidden="true">🌈</span>
-                <span class="powerup__count" id="powerupRainbowCount">0</span>
-            </button>
-            <button class="powerup powerup--lightning" id="powerupLightning" data-type="lightning" disabled aria-label="Lightning power-up">
-                <span class="powerup__emoji" aria-hidden="true">⚡</span>
-                <span class="powerup__count" id="powerupLightningCount">0</span>
-            </button>
-        </section>
+        <!-- ===== Bottom Dock (visible only during play / full-view) ===== -->
+        <div class="game-bottom-dock" id="gameBottomDock" aria-hidden="true">
+            <div class="shooter-preview">
+                <span class="shooter-preview__label">NEXT</span>
+                <div class="shooter-preview__bubble shooter-preview__next" id="shooterPreviewNext"></div>
+                <div class="shooter-preview__bubble shooter-preview__current" id="shooterPreviewCurrent"></div>
+            </div>
+            <div class="bottom-dock-powerups">
+                <button class="dock-powerup dock-powerup--bomb" id="powerupBomb" data-type="bomb" disabled aria-label="Bomb power-up">
+                    <span class="dock-powerup__emoji" aria-hidden="true">💣</span>
+                    <span class="dock-powerup__count" id="powerupBombCount">0</span>
+                </button>
+                <button class="dock-powerup dock-powerup--rainbow" id="powerupRainbow" data-type="rainbow" disabled aria-label="Rainbow power-up">
+                    <span class="dock-powerup__emoji" aria-hidden="true">🌈</span>
+                    <span class="dock-powerup__count" id="powerupRainbowCount">0</span>
+                </button>
+                <button class="dock-powerup dock-powerup--lightning" id="powerupLightning" data-type="lightning" disabled aria-label="Lightning power-up">
+                    <span class="dock-powerup__emoji" aria-hidden="true">⚡</span>
+                    <span class="dock-powerup__count" id="powerupLightningCount">0</span>
+                </button>
+            </div>
+        </div>
 
         <!-- ===== Bottom Action Dock ===== -->
         <nav class="action-dock" aria-label="Game menu">
@@ -371,15 +382,6 @@
 
     <!-- ===== Toast container ===== -->
     <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
-
-    <!-- ===== PWA install banner ===== -->
-    <div class="install-banner" id="installBanner" hidden>
-        <span>📱 Install BUBBLE POP! for offline play</span>
-        <div>
-            <button class="nb-btn nb-btn--primary nb-btn--sm" id="installBtn">INSTALL</button>
-            <button class="nb-btn nb-btn--ghost nb-btn--sm" id="installDismiss">LATER</button>
-        </div>
-    </div>
 
     <!-- ===== Scripts ===== -->
     <script type="module" src="js/storage.js"></script>
