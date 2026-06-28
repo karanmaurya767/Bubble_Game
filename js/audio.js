@@ -109,10 +109,11 @@ class AudioEngine {
 
     // ---------- Public SFX ----------
 
-    /** Pop bubble — short descending blip */
+    /** Pop bubble — bright "bubble-like" descending blip + tiny noise click */
     pop() {
-        this.tone({ freq: 800, type: 'sine', duration: 0.12, attack: 0.005, decay: 0.08, gain: 0.4, slide: -300 });
-        this.noise({ duration: 0.04, gain: 0.15, filter: 2000 });
+        this.tone({ freq: 1200, type: 'sine', duration: 0.08, attack: 0.001, decay: 0.07, gain: 0.4, slide: -700 });
+        this.tone({ freq: 400, type: 'sine', duration: 0.06, attack: 0.002, decay: 0.05, gain: 0.15, slide: -200 });
+        this.noise({ duration: 0.025, gain: 0.08, filter: 3000 });
     }
 
     /** Shoot — rising whoosh */
@@ -210,15 +211,21 @@ class AudioEngine {
             freq: f, type: 'triangle', duration: 0.2, attack: 0.005, decay: 0.16, gain: 0.45,
         }), i * 70));
     }
+
+    /** v1.3 — Swap current/next bubble — two-note ascending chirp */
+    swap() {
+        this.tone({ freq: 600, type: 'triangle', duration: 0.08, attack: 0.005, decay: 0.06, gain: 0.3, slide: 400 });
+        this.tone({ freq: 1000, type: 'triangle', duration: 0.08, attack: 0.005, decay: 0.06, gain: 0.3 });
+    }
 }
 
 export const Audio = new AudioEngine();
 
 // ============================================================
-// Procedural Music — looping chiptune via OscillatorNode
+// Procedural Music — looping bubble-pop chiptune
 // ============================================================
-// 16-step pattern, minor pentatonic lead + square-wave bass.
-// All synthesized — no audio files. Starts on first user gesture.
+// v1.3 — Major pentatonic + percussion (kick + hi-hat) for bouncy feel.
+// 16-step pattern. All synthesized — no audio files. Starts on first user gesture.
 // ============================================================
 class MusicEngine {
     constructor(audioEngine) {
@@ -229,16 +236,20 @@ class MusicEngine {
         this.bassGain = null;
         this.bassFilter = null;
         this.leadGain = null;
+        this.hiHatGain = null;
+        this.kickGain = null;
         this.timer = null;
         this.stepIndex = 0;
         this.enabled = false;
         this.pendingStart = false; // v1.2 — wait for first user gesture
         this.volume = 0.15;
-        this.tempo = 124;          // BPM
+        this.tempo = 104;          // BPM — slower, more relaxed bubble-pop feel
         this.stepInterval = 0;     // seconds per 16th note
-        this.scale = [0, 3, 5, 7, 10]; // minor pentatonic (semitones)
-        this.root = 220;           // A3
+        this.scale = [0, 2, 4, 7, 9]; // v1.3 — MAJOR pentatonic (happy/bouncy)
+        this.root = 262;           // v1.3 — C4 (brighter than A3)
+        this.bassRoot = 130;       // C3
         this.leadPattern = [];
+        this.bassPattern = [0, 0, 5, 0, 0, 0, 7, 0, 0, 0, 5, 0, 0, 0, 4, 0]; // v1.3 syncopated
         this.barCount = 0;
     }
 
@@ -255,7 +266,9 @@ class MusicEngine {
         this.audio.resume();
         if (this.audio.initialized) {
             this.pendingStart = false;
-            this.setVolume((Storage.getSettings().volume / 100) * 0.3);
+            // Apply user's music volume (default 50%)
+            const mv = Storage.getSettings().musicVolume ?? 50;
+            this.setMusicVolume(mv / 100);
             this.start();
         }
     }
@@ -269,14 +282,14 @@ class MusicEngine {
         this.masterGain.gain.value = 0;
         this.masterGain.connect(this.audio.masterGain);
 
-        // Bass — square through lowpass
+        // Bass — triangle through lowpass (warmer than square)
         this.bassOsc = this.ctx.createOscillator();
-        this.bassOsc.type = 'square';
+        this.bassOsc.type = 'triangle';
         this.bassFilter = this.ctx.createBiquadFilter();
         this.bassFilter.type = 'lowpass';
-        this.bassFilter.frequency.value = 600;
+        this.bassFilter.frequency.value = 500;
         this.bassGain = this.ctx.createGain();
-        this.bassGain.gain.value = 0.12;
+        this.bassGain.gain.value = 0;
         this.bassOsc.connect(this.bassFilter);
         this.bassFilter.connect(this.bassGain);
         this.bassGain.connect(this.masterGain);
@@ -284,8 +297,22 @@ class MusicEngine {
 
         // Lead bus
         this.leadGain = this.ctx.createGain();
-        this.leadGain.gain.value = 0.18;
+        this.leadGain.gain.value = 0.20;
         this.leadGain.connect(this.masterGain);
+
+        // Hi-hat bus (white noise burst)
+        this.hiHatGain = this.ctx.createGain();
+        this.hiHatGain.gain.value = 0.08;
+        const hiHatFilter = this.ctx.createBiquadFilter();
+        hiHatFilter.type = 'highpass';
+        hiHatFilter.frequency.value = 7000;
+        this.hiHatGain.connect(hiHatFilter);
+        hiHatFilter.connect(this.masterGain);
+
+        // Kick bus (low sine pulse)
+        this.kickGain = this.ctx.createGain();
+        this.kickGain.gain.value = 0.0;
+        this.kickGain.connect(this.masterGain);
 
         this.stepInterval = 60 / this.tempo / 4;
         this.stepIndex = 0;
@@ -322,6 +349,8 @@ class MusicEngine {
         this.bassFilter = null;
         this.bassGain = null;
         this.leadGain = null;
+        this.hiHatGain = null;
+        this.kickGain = null;
         this.masterGain = null;
     }
 
@@ -329,8 +358,8 @@ class MusicEngine {
         const notes = this.scale;
         this.leadPattern = [];
         for (let i = 0; i < 16; i++) {
-            if (Math.random() < 0.32) {
-                const oct = Math.random() < 0.25 ? 12 : 0;
+            if (Math.random() < 0.35) {
+                const oct = Math.random() < 0.3 ? 12 : 0;
                 const semi = notes[Math.floor(Math.random() * notes.length)] + oct;
                 this.leadPattern.push(semi);
             } else {
@@ -348,10 +377,27 @@ class MusicEngine {
         }
         const t = this.ctx.currentTime;
 
-        // Bass hit on beats 0, 2 (every 8 sixteenths)
-        if (stepInBar % 8 === 0 && this.bassOsc) {
-            this.bassOsc.frequency.setValueAtTime(this.root / 2, t);
-            this.bassOsc.frequency.exponentialRampToValueAtTime(this.root, t + this.stepInterval * 2);
+        // v1.3 — Bass: hit on syncopated pattern (notes from bassPattern)
+        if (this.bassOsc) {
+            const semi = this.bassPattern[stepInBar];
+            if (semi !== 0 || stepInBar === 0) {
+                const freq = this.bassRoot * Math.pow(2, semi / 12);
+                this.bassOsc.frequency.setValueAtTime(freq, t);
+                this.bassGain.gain.cancelScheduledValues(t);
+                this.bassGain.gain.setValueAtTime(0, t);
+                this.bassGain.gain.linearRampToValueAtTime(0.18, t + 0.005);
+                this.bassGain.gain.exponentialRampToValueAtTime(0.001, t + this.stepInterval * 1.2);
+            }
+        }
+
+        // v1.3 — Hi-hat on every odd 8th (8 hits per bar)
+        if (this.hiHatGain && stepInBar % 2 === 1) {
+            this.playHiHat(t, stepInBar % 4 === 1 ? 0.5 : 1.0);
+        }
+
+        // v1.3 — Kick on beats 0 and 2 (every 8 sixteenths)
+        if (this.kickGain && stepInBar % 8 === 0) {
+            this.playKick(t);
         }
 
         // Lead note
@@ -375,17 +421,57 @@ class MusicEngine {
         this.timer = setTimeout(() => this.tick(), this.stepInterval * 1000);
     }
 
+    // v1.3 — Hi-hat: short white noise burst through highpass filter
+    playHiHat(t, accent = 1.0) {
+        if (!this.ctx || !this.hiHatGain) return;
+        const bufferSize = Math.floor(this.ctx.sampleRate * 0.04);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        }
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.04 * accent, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+        src.connect(g);
+        g.connect(this.hiHatGain);
+        src.start(t);
+    }
+
+    // v1.3 — Kick: low sine sweep with envelope
+    playKick(t) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.4, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(g);
+        g.connect(this.kickGain);
+        osc.start(t);
+        osc.stop(t + 0.2);
+    }
+
     setEnabled(on) {
         this.enabled = on;
         if (on) this.start(); else this.stop();
     }
 
-    setVolume(v) {
-        this.volume = Math.max(0, Math.min(0.4, v));
+    /** v1.3 — separate volume for music channel (independent from SFX) */
+    setMusicVolume(v) {
+        this.volume = Math.max(0, Math.min(0.5, v));
         if (this.masterGain && this.ctx) {
             this.masterGain.gain.setTargetAtTime(this.volume, this.ctx.currentTime, 0.2);
         }
     }
+
+    /** Backward-compat alias */
+    setVolume(v) { this.setMusicVolume(v); }
 }
 
 export const Music = new MusicEngine(Audio);
@@ -427,6 +513,11 @@ class VoiceEngine {
     }
 
     setEnabled(on) { this.enabled = !!on; }
+
+    /** v1.3 — separate volume for voice channel */
+    setVoiceVolume(v) {
+        this.volume = Math.max(0, Math.min(1, v));
+    }
 
     say(text, opts = {}) {
         if (!this.enabled || !this.available || !this.unlocked) return;
@@ -481,7 +572,8 @@ if (Voice.available) {
 
 // Apply stored settings on module load
 const settings = Storage.getSettings();
-Audio.setVolume(settings.volume / 100);
+Audio.setVolume((settings.sfxVolume ?? settings.volume ?? 80) / 100);
+Voice.setVoiceVolume((settings.voiceVolume ?? 80) / 100);
 // v1.2 — mark music as pending; will start on first user gesture (tryStartOnGesture)
 if (settings.music) Music.pendingStart = true;
 if (settings.voice) {

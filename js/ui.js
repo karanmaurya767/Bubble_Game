@@ -290,6 +290,11 @@ export class SettingsManager {
         this.dragAimInput = document.getElementById('setDragAim');
         this.resetBtn = document.getElementById('setReset');
         this.volumeLabel = document.getElementById('setVolumeValue');
+        // v1.3 — separate volume sliders
+        this.musicVolumeInput = document.getElementById('setMusicVolume');
+        this.voiceVolumeInput = document.getElementById('setVoiceVolume');
+        this.musicVolumeLabel = document.getElementById('setMusicVolumeValue');
+        this.voiceVolumeLabel = document.getElementById('setVoiceVolumeValue');
         this.bind();
         this.load();
     }
@@ -299,14 +304,35 @@ export class SettingsManager {
             const v = parseInt(this.volumeInput.value);
             if (this.volumeLabel) this.volumeLabel.textContent = `${v}%`;
             Audio.setVolume(v / 100);
-            // Music is quieter than SFX
-            Music.setVolume((v / 100) * 0.3);
             const s = Storage.getSettings();
-            s.volume = v;
+            s.sfxVolume = v; // v1.3 — separate key
+            s.volume = v;    // back-compat
             Storage.saveSettings(s);
             // If user mutes, stop music; if they unmute and music was on, restart
             if (v === 0 && Music.timer) Music.stop();
             else if (v > 0 && Storage.getSettings().music && !Music.timer) Music.setEnabled(true);
+            this.onChange?.(s);
+        });
+
+        // v1.3 — Music volume slider
+        this.musicVolumeInput?.addEventListener('input', () => {
+            const v = parseInt(this.musicVolumeInput.value);
+            if (this.musicVolumeLabel) this.musicVolumeLabel.textContent = `${v}%`;
+            Music.setMusicVolume(v / 100);
+            const s = Storage.getSettings();
+            s.musicVolume = v;
+            Storage.saveSettings(s);
+            this.onChange?.(s);
+        });
+
+        // v1.3 — Voice volume slider
+        this.voiceVolumeInput?.addEventListener('input', () => {
+            const v = parseInt(this.voiceVolumeInput.value);
+            if (this.voiceVolumeLabel) this.voiceVolumeLabel.textContent = `${v}%`;
+            Voice.setVoiceVolume(v / 100);
+            const s = Storage.getSettings();
+            s.voiceVolume = v;
+            Storage.saveSettings(s);
             this.onChange?.(s);
         });
 
@@ -393,19 +419,26 @@ export class SettingsManager {
 
     load() {
         const s = Storage.getSettings();
-        if (this.volumeInput) this.volumeInput.value = s.volume;
-        if (this.volumeLabel) this.volumeLabel.textContent = `${s.volume}%`;
+        const sfxV = s.sfxVolume ?? s.volume ?? 80;
+        const musicV = s.musicVolume ?? 50;
+        const voiceV = s.voiceVolume ?? 80;
+        if (this.volumeInput) this.volumeInput.value = sfxV;
+        if (this.volumeLabel) this.volumeLabel.textContent = `${sfxV}%`;
+        if (this.musicVolumeInput) this.musicVolumeInput.value = musicV;
+        if (this.musicVolumeLabel) this.musicVolumeLabel.textContent = `${musicV}%`;
+        if (this.voiceVolumeInput) this.voiceVolumeInput.value = voiceV;
+        if (this.voiceVolumeLabel) this.voiceVolumeLabel.textContent = `${voiceV}%`;
         if (this.hapticsInput) this.hapticsInput.checked = s.haptics;
         if (this.particlesInput) this.particlesInput.value = s.particles;
         if (this.reducedMotionInput) this.reducedMotionInput.checked = !!s.reducedMotion;
         if (this.musicInput) this.musicInput.checked = !!s.music;
         if (this.voiceInput) this.voiceInput.checked = !!s.voice;
         if (this.dragAimInput) this.dragAimInput.checked = s.dragAim !== false;
-        Audio.setVolume(s.volume / 100);
-        Music.setVolume((s.volume / 100) * 0.3);
+        Audio.setVolume(sfxV / 100);
+        Music.setMusicVolume(musicV / 100);
+        Voice.setVoiceVolume(voiceV / 100);
         setHapticsEnabled(s.haptics);
         Voice.setEnabled(!!s.voice);
-        // Music starts only on first user gesture — defer to Audio.init()
         if (s.reducedMotion) document.documentElement.classList.add('reduced-motion');
     }
 }

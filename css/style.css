@@ -1357,3 +1357,138 @@ button:focus-visible, .toggle:focus-visible, .slider:focus-visible, .select:focu
         padding: 6px 12px;
     }
 }
+
+/* ============================================================
+   v1.3 — Swap, shooter pulse, board-cleared overlay
+   ============================================================ */
+
+/* Shooter preview is now clickable to swap */
+.shooter-preview {
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease;
+}
+.shooter-preview:hover {
+    transform: scale(1.06);
+}
+.shooter-preview:active {
+    transform: scale(0.96);
+}
+
+/* Swap flash animation when swapped */
+@keyframes swap-flash {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.25) rotate(180deg); }
+    100% { transform: scale(1) rotate(360deg); }
+}
+.shooter-preview__bubble.is-swap {
+    animation: swap-flash 0.5s ease;
+}
+
+/* Shooter ready-to-fire pulse (when no shooting bubble in flight) */
+@keyframes bubble-ready {
+    0%, 100% { transform: scale(1); filter: brightness(1); }
+    50% { transform: scale(1.10); filter: brightness(1.15); }
+}
+.app.in-game.state-ready .shooter-preview__current {
+    animation: bubble-ready 1.4s ease-in-out infinite;
+}
+
+/* Dedicated Swap button */
+.dock-swap {
+    width: 54px;
+    height: 54px;
+    background: var(--nb-cream);
+    border: var(--nb-border-thin);
+    border-radius: var(--nb-radius-sm);
+    box-shadow: var(--nb-shadow-sm);
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: transform 0.2s ease, box-shadow 0.15s ease, background 0.15s ease;
+    flex-shrink: 0;
+}
+.dock-swap:hover {
+    transform: translate(-2px, -2px) rotate(45deg);
+    box-shadow: 5px 5px 0 var(--nb-ink);
+    background: var(--nb-yellow);
+}
+.dock-swap:active {
+    transform: translate(0, 0);
+    box-shadow: 2px 2px 0 var(--nb-ink);
+}
+
+/* v1.3 — Board cleared celebration overlay */
+.board-cleared-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(26, 26, 26, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.board-cleared-overlay.is-active {
+    opacity: 1;
+}
+.board-cleared-card {
+    background: var(--nb-cream);
+    border: var(--nb-border);
+    border-radius: var(--nb-radius-lg);
+    padding: 24px 36px;
+    box-shadow: var(--nb-shadow-lg);
+    text-align: center;
+    animation: bounce-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 90%;
+}
+.board-cleared-emoji {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 8px;
+    animation: wobble 1s ease-in-out infinite;
+}
+.board-cleared-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.4rem, 5vw, 2.2rem);
+    margin: 0 0 6px 0;
+    color: var(--nb-ink);
+    letter-spacing: 0.02em;
+}
+.board-cleared-sub {
+    font-family: var(--font-arcade);
+    font-size: 0.7rem;
+    color: var(--nb-ink);
+    margin: 0;
+    opacity: 0.7;
+}
+
+@keyframes bounce-in {
+    0% { transform: scale(0.3); opacity: 0; }
+    60% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 480px) {
+    .dock-swap {
+        width: 46px;
+        height: 46px;
+        font-size: 1.25rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .dock-swap {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1rem;
+    }
+}

@@ -100,7 +100,10 @@ export const Storage = {
 
     getSettings() {
         return get(KEYS.SETTINGS, {
-            volume: 80,
+            volume: 80,       // legacy master volume (back-compat)
+            sfxVolume: 80,    // v1.3 — SFX volume
+            musicVolume: 50,  // v1.3 — music volume (separate from SFX)
+            voiceVolume: 80,  // v1.3 — voice callout volume
             haptics: true,
             particles: 'med', // low | med | high
             reducedMotion: false,

@@ -54,6 +54,10 @@ const dom = {
     bottomDock: document.getElementById('gameBottomDock'),
     shooterPreviewCurrent: document.getElementById('shooterPreviewCurrent'),
     shooterPreviewNext: document.getElementById('shooterPreviewNext'),
+    // v1.3 — swap button + board-cleared overlay
+    dockSwap: document.getElementById('dockSwap'),
+    shooterPreview: document.getElementById('shooterPreview'),
+    boardClearedOverlay: document.getElementById('boardClearedOverlay'),
 };
 
 // ============================================================
@@ -218,6 +222,55 @@ function updateShooterPreview() {
     }
 }
 
+// v1.3 — swap current and next bubble (free, no shot consumed)
+function swapCurrentNext() {
+    if (!state.gameRunning || state.paused || state.shootingBubble) return;
+    if (!state.currentBubble || !state.nextBubble) return;
+    const tmp = state.currentBubble.color;
+    state.currentBubble.color = state.nextBubble.color;
+    state.nextBubble.color = tmp;
+    updateShooterPreview();
+    Audio.swap();
+    hapticPop();
+    // Visual flash on the preview bubbles
+    [dom.shooterPreviewCurrent, dom.shooterPreviewNext].forEach((el) => {
+        if (!el) return;
+        el.classList.remove('is-swap');
+        void el.offsetWidth;
+        el.classList.add('is-swap');
+        setTimeout(() => el.classList.remove('is-swap'), 600);
+    });
+}
+
+// v1.3 — toggle "ready" state class on body (drives CSS pulse animation)
+function setShooterReady(ready) {
+    if (!dom.app) return;
+    dom.app.classList.toggle('state-ready', !!ready);
+}
+
+// v1.3 — celebration overlay between board-clear and win screen
+function showBoardCleared() {
+    state.shootingBubble = null;
+    state.gameRunning = false;
+    setShooterReady(false);
+    Particles.shakeScreen(8);
+    Particles.confetti(state.canvas.width, state.canvas.height, 80);
+    Audio.win();
+    Voice.win();
+    hapticBigPop();
+    if (dom.boardClearedOverlay) {
+        dom.boardClearedOverlay.classList.add('is-active');
+        dom.boardClearedOverlay.setAttribute('aria-hidden', 'false');
+    }
+    setTimeout(() => {
+        if (dom.boardClearedOverlay) {
+            dom.boardClearedOverlay.classList.remove('is-active');
+            dom.boardClearedOverlay.setAttribute('aria-hidden', 'true');
+        }
+        levelComplete();
+    }, 1500);
+}
+
 // ============================================================
 // UI Update helpers
 // ============================================================
@@ -292,6 +345,7 @@ function startLevel() {
     hideAllOverlays();
     updateTopBar();
     updateShooterPreview();
+    setShooterReady(true); // v1.3 — pulse the current bubble until first shot
     setFullView(true); // v1.2 — show top strip + bottom dock
 }
 
@@ -732,7 +786,8 @@ function shootBubble() {
     // Advance queue
     state.currentBubble = { x: state.shooterX, y: state.shooterY, color: state.nextBubble.color, vx: 0, vy: 0 };
     state.nextBubble = { x: state.shooterX + 50, y: state.shooterY, color: randomColor() };
-    updateShooterPreview(); // v1.2
+    updateShooterPreview();
+    setShooterReady(false); // v1.3 — bubble in flight, stop pulse
 
     state.bubblesLeft--;
     state.matchesThisShot = 0;
@@ -903,13 +958,14 @@ function attachBubble() {
     }
 
     state.shootingBubble = null;
+    setShooterReady(true); // v1.3 — re-enable pulse after attach
 
-    // Win condition: cleared all bubbles
+    // Win condition: cleared all bubbles — show celebration overlay first
     if (state.bubbles.length === 0) {
         state.score += 1000;
         state.bubblesLeft += 5; // bonus
         updateStatsBar();
-        setTimeout(() => levelComplete(), 600);
+        showBoardCleared(); // v1.3 — celebration + 1.5s delay before win screen
         return;
     }
 
@@ -1025,6 +1081,7 @@ function checkAchievements() {
 // ============================================================
 function levelComplete() {
     state.gameRunning = false;
+    setShooterReady(false); // v1.3
     setFullView(false); // v1.1 — restore HUD for win screen
     Audio.win();
     Audio.levelUp();
@@ -1085,6 +1142,7 @@ function renderStars(n) {
 
 function gameOver() {
     state.gameRunning = false;
+    setShooterReady(false); // v1.3
     setFullView(false); // v1.1 — restore HUD for game-over screen
     Audio.lose();
     Voice.lose();
@@ -1345,6 +1403,16 @@ function bindUIButtons() {
     dom.stripSettingsBtn?.addEventListener('click', () => {
         Music.tryStartOnGesture(); // opening settings is also a gesture
         modals.open('modalSettings');
+    });
+
+    // v1.3 — Swap current/next bubble
+    dom.dockSwap?.addEventListener('click', () => swapCurrentNext());
+    dom.shooterPreview?.addEventListener('click', () => swapCurrentNext());
+    dom.shooterPreview?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            swapCurrentNext();
+        }
     });
 }
 

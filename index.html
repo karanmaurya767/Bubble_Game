@@ -164,6 +164,15 @@
                 <!-- Pause button (over canvas - kept as legacy fallback) -->
                 <button class="pause-btn" id="pauseBtn" aria-label="Pause game" hidden>⏸</button>
 
+                <!-- v1.3 — Board cleared celebration overlay -->
+                <div class="board-cleared-overlay" id="boardClearedOverlay" aria-hidden="true">
+                    <div class="board-cleared-card">
+                        <div class="board-cleared-emoji" aria-hidden="true">🎉</div>
+                        <h2 class="board-cleared-title">BOARD CLEARED!</h2>
+                        <p class="board-cleared-sub">Calculating score…</p>
+                    </div>
+                </div>
+
                 <!-- Start Screen -->
                 <div id="startScreen" class="screen-overlay screen-overlay--start active" role="dialog" aria-modal="true">
                     <div class="screen-overlay__card">
@@ -226,11 +235,12 @@
 
         <!-- ===== Bottom Dock (visible only during play / full-view) ===== -->
         <div class="game-bottom-dock" id="gameBottomDock" aria-hidden="true">
-            <div class="shooter-preview">
-                <span class="shooter-preview__label">NEXT</span>
+            <div class="shooter-preview" id="shooterPreview" role="button" aria-label="Swap current and next bubble" tabindex="0">
+                <span class="shooter-preview__label">TAP TO SWAP</span>
                 <div class="shooter-preview__bubble shooter-preview__next" id="shooterPreviewNext"></div>
                 <div class="shooter-preview__bubble shooter-preview__current" id="shooterPreviewCurrent"></div>
             </div>
+            <button class="dock-swap" id="dockSwap" aria-label="Swap current and next bubble" title="Swap bubbles">🔄</button>
             <div class="bottom-dock-powerups">
                 <button class="dock-powerup dock-powerup--bomb" id="powerupBomb" data-type="bomb" disabled aria-label="Bomb power-up">
                     <span class="dock-powerup__emoji" aria-hidden="true">💣</span>
@@ -327,9 +337,21 @@
             <h2 class="modal__title" id="modalSetTitle">SETTINGS</h2>
 
             <div class="setting-row">
-                <label class="setting-row__label" for="setVolume">Sound Volume</label>
+                <label class="setting-row__label" for="setVolume">SFX Volume</label>
                 <input type="range" id="setVolume" class="slider" min="0" max="100" value="80">
                 <span class="setting-row__value" id="setVolumeValue">80%</span>
+            </div>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setMusicVolume">Music Volume</label>
+                <input type="range" id="setMusicVolume" class="slider" min="0" max="100" value="50">
+                <span class="setting-row__value" id="setMusicVolumeValue">50%</span>
+            </div>
+
+            <div class="setting-row">
+                <label class="setting-row__label" for="setVoiceVolume">Voice Volume</label>
+                <input type="range" id="setVoiceVolume" class="slider" min="0" max="100" value="80">
+                <span class="setting-row__value" id="setVoiceVolumeValue">80%</span>
             </div>
 
             <div class="setting-row">
@@ -376,7 +398,7 @@
 
             <button class="nb-btn nb-btn--danger nb-btn--full" id="setReset">RESET ALL PROGRESS</button>
 
-            <p class="setting-footer">BUBBLE POP! v1.1 · Built with ❤️</p>
+            <p class="setting-footer">BUBBLE POP! v1.3 · Built with ❤️</p>
         </div>
     </div>
 
